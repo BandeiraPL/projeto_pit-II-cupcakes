@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CupcakeShop</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="script.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <main id="app" class="screen" aria-live="polite"></main>
+
+      <nav class="bottom-nav" aria-label="Navegação principal">
+        <button class="nav-item" data-action="navigate" data-route="home">
+          <span class="nav-icon">⌂</span>
+          <span>Home</span>
+        </button>
+        <button class="nav-item" data-action="navigate" data-route="catalog">
+          <span class="nav-icon">▣</span>
+          <span>Catálogo</span>
+        </button>
+        <button class="nav-item" data-action="navigate" data-route="cart">
+          <span class="nav-icon">□</span>
+          <span>Carrinho</span>
+          <strong id="cart-badge" class="cart-badge" hidden>0</strong>
+        </button>
+        <button class="nav-item" data-action="navigate" data-route="profile">
+          <span class="nav-icon">○</span>
+          <span>Perfil</span>
+        </button>
+      </nav>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="modal" class="modal" aria-hidden="true"></div>
+  </body>
+</html>
