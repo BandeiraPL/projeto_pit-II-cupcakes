@@ -32,3 +32,10 @@ temp/
 # Capturas temporarias
 *-check.png
 frontend-api-check.png
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env/
+.pytest_cache/
