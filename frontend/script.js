@@ -540,7 +540,19 @@ function renderCart() {
       <h2>Entrega e pagamento</h2>
       <div class="form-grid">
         <label class="field">
-          <span>Endereço</span>
+          <span>Nome</span>
+          <input id="checkout-name" value="${escapeHTML(store.usuario.nome)}" />
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input id="checkout-email" type="email" value="${escapeHTML(store.usuario.email)}" />
+        </label>
+        <label class="field">
+          <span>Telefone</span>
+          <input id="checkout-phone" value="${escapeHTML(store.usuario.telefone)}" />
+        </label>
+        <label class="field">
+          <span>Endereco</span>
           <input id="checkout-address" value="${escapeHTML(store.usuario.endereco)}" />
         </label>
         <label class="field">
@@ -703,27 +715,31 @@ function editProfile() {
 }
 
 async function finishOrder() {
+  const nome = document.querySelector("#checkout-name").value.trim();
+  const email = document.querySelector("#checkout-email").value.trim();
+  const telefone = document.querySelector("#checkout-phone").value.trim();
   const endereco = document.querySelector("#checkout-address").value.trim();
   const pagamento = document.querySelector("#checkout-payment").value;
-  if (!endereco) {
-    showToast("Informe o endereço de entrega");
+  if (!nome || !email || !telefone || !endereco) {
+    showToast("Preencha os dados da entrega");
     return;
   }
+
+  store.usuario = { nome, email, telefone, endereco };
+  saveLocalUser(store.usuario);
 
   const novoPedido = await api("/pedidos", {
     method: "POST",
     body: JSON.stringify({
       endereco,
       pagamento,
-      usuario: { ...store.usuario, endereco },
+      usuario: store.usuario,
     }),
   });
 
   store.pedidos = [normalizeOrder(novoPedido), ...store.pedidos];
   saveSessionOrders();
   syncCart(await api("/carrinho"));
-  store.usuario.endereco = endereco;
-  saveLocalUser(store.usuario);
   updateCartBadge();
 
   openModal(`
