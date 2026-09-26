@@ -30,10 +30,12 @@ class ApiTest(unittest.TestCase):
         self.thread.join(timeout=2)
         self.server.server_close()
 
-    def request(self, method, path, body=None):
+    def request(self, method, path, body=None, session_id="teste"):
         connection = HTTPConnection("127.0.0.1", self.port)
         payload = json.dumps(body).encode("utf-8") if body is not None else None
-        headers = {"Content-Type": "application/json"} if payload else {}
+        headers = {"X-Session-Id": session_id}
+        if payload:
+            headers["Content-Type"] = "application/json"
         connection.request(method, path, body=payload, headers=headers)
         response = connection.getresponse()
         data = response.read().decode("utf-8")
@@ -48,16 +50,32 @@ class ApiTest(unittest.TestCase):
         status, carrinho = self.request("POST", "/api/carrinho/itens", {
             "produtoId": 1,
             "quantidade": 2,
-        })
+        }, session_id="pedido")
         self.assertEqual(status, 201)
         self.assertEqual(carrinho["quantidadeTotal"], 2)
 
         status, pedido = self.request("POST", "/api/pedidos", {
             "endereco": "Rua das Flores, 123",
             "pagamento": "Pix",
-        })
+        }, session_id="pedido")
         self.assertEqual(status, 201)
         self.assertEqual(pedido["status"], "Recebido")
+
+    def test_carrinho_fica_separado_por_sessao(self):
+        status, carrinho_a = self.request("POST", "/api/carrinho/itens", {
+            "produtoId": 1,
+            "quantidade": 1,
+        }, session_id="cliente-a")
+        self.assertEqual(status, 201)
+        self.assertEqual(carrinho_a["quantidadeTotal"], 1)
+
+        status, carrinho_b = self.request("GET", "/api/carrinho", session_id="cliente-b")
+        self.assertEqual(status, 200)
+        self.assertEqual(carrinho_b["quantidadeTotal"], 0)
+
+        status, carrinho_a = self.request("GET", "/api/carrinho", session_id="cliente-a")
+        self.assertEqual(status, 200)
+        self.assertEqual(carrinho_a["quantidadeTotal"], 1)
 
 
 if __name__ == "__main__":

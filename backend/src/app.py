@@ -37,7 +37,8 @@ class ApiHandler(BaseHTTPRequestHandler):
         try:
             parsed = urlparse(self.path)
             body = self.read_json_body()
-            response = handle_route(self.command, parsed.path, parse_qs(parsed.query), body)
+            session_id = self.headers.get("X-Session-Id", "")
+            response = handle_route(self.command, parsed.path, parse_qs(parsed.query), body, session_id)
             self.send_json(response["status"], response["data"])
         except HttpError as error:
             self.send_json(error.status, {"erro": error.message, "detalhe": error.message})
@@ -67,7 +68,7 @@ class ApiHandler(BaseHTTPRequestHandler):
     def send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Session-Id")
 
 
 def create_server(address=("127.0.0.1", 3000)):

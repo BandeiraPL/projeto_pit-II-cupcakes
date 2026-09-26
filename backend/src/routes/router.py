@@ -29,7 +29,7 @@ routes = [
 ]
 
 
-def handle_route(method, path, query, body):
+def handle_route(method, path, query, body, session_id=""):
     for route_method, pattern, handler, read_body, status in routes:
         match = pattern.match(path)
         if route_method == method and match:
@@ -37,6 +37,7 @@ def handle_route(method, path, query, body):
                 "query": query,
                 "body": body if read_body else {},
                 "params": match.groupdict(),
+                "session_id": session_id,
             })
             return {"status": status, "data": data}
 

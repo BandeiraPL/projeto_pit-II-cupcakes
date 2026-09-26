@@ -53,11 +53,11 @@ def find_all():
     return store.pedidos
 
 
-def create(data):
+def create(data, session_id=""):
     if not data.get("endereco") or not str(data.get("endereco")).strip():
         http_error("Endereco de entrega obrigatorio", 400)
 
-    carrinho = cart_model.get_summary()
+    carrinho = cart_model.get_summary(session_id)
     if not carrinho["itens"]:
         http_error("Carrinho vazio", 400)
 
@@ -101,13 +101,13 @@ def create(data):
                 },
             )
 
-        cart_model.clear()
+        cart_model.clear(session_id)
         return build_order_response(pedido_id, endereco, pagamento, carrinho)
 
     pedido = build_order_response(len(store.pedidos) + 1, endereco, pagamento, carrinho)
     pedido["usuarioId"] = store.usuario["id"]
     store.pedidos.insert(0, pedido)
-    cart_model.clear()
+    cart_model.clear(session_id)
     return pedido
 
 

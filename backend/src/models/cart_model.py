@@ -1,10 +1,10 @@
-﻿from src.data import store
+from src.data import store
 from src.database.connection import is_database_enabled, query
 from src.models import product_model
 from src.utils.http import http_error
 
 
-def add_item(produto_id, quantidade=1):
+def add_item(produto_id, quantidade=1, session_id=""):
     product_id = int(produto_id)
     amount = int(quantidade)
     produto = product_model.find_by_id(product_id)
@@ -15,7 +15,7 @@ def add_item(produto_id, quantidade=1):
         http_error("Quantidade invalida", 400)
 
     if is_database_enabled():
-        carrinho = get_open_cart()
+        carrinho = get_open_cart(session_id)
         rows = query(
             "SELECT id, quantidade FROM carrinho_itens WHERE carrinho_id = %(carrinho_id)s AND produto_id = %(produto_id)s",
             {"carrinho_id": carrinho["id"], "produto_id": product_id},
@@ -39,21 +39,22 @@ def add_item(produto_id, quantidade=1):
                     "preco_unitario": produto["preco"],
                 },
             )
-        return get_summary()
+        return get_summary(session_id)
 
-    item = next((entry for entry in store.carrinho if entry["produtoId"] == product_id), None)
+    cart = memory_cart(session_id)
+    item = next((entry for entry in cart if entry["produtoId"] == product_id), None)
     if item:
         item["quantidade"] += amount
     else:
-        store.carrinho.append({"produtoId": product_id, "quantidade": amount})
-    return get_summary()
+        cart.append({"produtoId": product_id, "quantidade": amount})
+    return get_summary(session_id)
 
 
-def update_item(produto_id, data):
+def update_item(produto_id, data, session_id=""):
     product_id = int(produto_id)
 
     if is_database_enabled():
-        carrinho = get_open_cart()
+        carrinho = get_open_cart(session_id)
         rows = query(
             "SELECT id, quantidade FROM carrinho_itens WHERE carrinho_id = %(carrinho_id)s AND produto_id = %(produto_id)s",
             {"carrinho_id": carrinho["id"], "produto_id": product_id},
@@ -74,9 +75,10 @@ def update_item(produto_id, data):
                 "UPDATE carrinho_itens SET quantidade = %(quantidade)s WHERE id = %(id)s",
                 {"quantidade": next_quantity, "id": item["id"]},
             )
-        return get_summary()
+        return get_summary(session_id)
 
-    item = next((entry for entry in store.carrinho if entry["produtoId"] == product_id), None)
+    cart = memory_cart(session_id)
+    item = next((entry for entry in cart if entry["produtoId"] == product_id), None)
     if not item:
         http_error("Item nao encontrado no carrinho", 404)
 
@@ -87,37 +89,38 @@ def update_item(produto_id, data):
 
     item["quantidade"] = next_quantity
     if item["quantidade"] <= 0:
-        remove_item(product_id)
-    return get_summary()
+        remove_item(product_id, session_id)
+    return get_summary(session_id)
 
 
-def remove_item(produto_id):
+def remove_item(produto_id, session_id=""):
     product_id = int(produto_id)
 
     if is_database_enabled():
-        carrinho = get_open_cart()
+        carrinho = get_open_cart(session_id)
         query(
             "DELETE FROM carrinho_itens WHERE carrinho_id = %(carrinho_id)s AND produto_id = %(produto_id)s",
             {"carrinho_id": carrinho["id"], "produto_id": product_id},
         )
-        return get_summary()
+        return get_summary(session_id)
 
-    store.carrinho[:] = [entry for entry in store.carrinho if entry["produtoId"] != product_id]
-    return get_summary()
+    cart = memory_cart(session_id)
+    cart[:] = [entry for entry in cart if entry["produtoId"] != product_id]
+    return get_summary(session_id)
 
 
-def clear():
+def clear(session_id=""):
     if is_database_enabled():
-        carrinho = get_open_cart()
+        carrinho = get_open_cart(session_id)
         query("DELETE FROM carrinho_itens WHERE carrinho_id = %(carrinho_id)s", {"carrinho_id": carrinho["id"]})
         return
 
-    store.carrinho.clear()
+    memory_cart(session_id).clear()
 
 
-def get_summary():
+def get_summary(session_id=""):
     if is_database_enabled():
-        carrinho = get_open_cart()
+        carrinho = get_open_cart(session_id)
         rows = query(
             """
             SELECT
@@ -158,7 +161,7 @@ def get_summary():
         return build_summary(itens)
 
     itens = []
-    for item in store.carrinho:
+    for item in memory_cart(session_id):
         produto = product_model.find_by_id(item["produtoId"])
         itens.append({
             "produto": produto,
@@ -182,13 +185,37 @@ def build_summary(itens):
     }
 
 
-def get_open_cart():
-    rows = query("SELECT id FROM carrinhos WHERE usuario_id = 1 AND status = 'aberto' ORDER BY id DESC LIMIT 1")
+def get_open_cart(session_id=""):
+    status = cart_status(session_id)
+    rows = query(
+        "SELECT id FROM carrinhos WHERE usuario_id = 1 AND status = %(status)s ORDER BY id DESC LIMIT 1",
+        {"status": status},
+    )
     if rows:
         return rows[0]
 
-    result = query("INSERT INTO carrinhos (usuario_id, status) VALUES (1, 'aberto')")
+    result = query(
+        "INSERT INTO carrinhos (usuario_id, status) VALUES (1, %(status)s)",
+        {"status": status},
+    )
     return {"id": result["insertId"]}
+
+
+def memory_cart(session_id=""):
+    carts = getattr(store, "carrinhos_por_sessao", None)
+    if carts is None:
+        carts = {}
+        store.carrinhos_por_sessao = carts
+    return carts.setdefault(session_key(session_id), [])
+
+
+def cart_status(session_id=""):
+    return f"aberto_{session_key(session_id)}"
+
+
+def session_key(session_id=""):
+    value = "".join(char for char in str(session_id or "") if char.isalnum())[:16]
+    return value or "padrao"
 
 
 def round_money(value):

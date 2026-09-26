@@ -1,4 +1,4 @@
-﻿from src.models import order_model
+from src.models import order_model
 
 
 def index(context):
@@ -6,4 +6,4 @@ def index(context):
 
 
 def create(context):
-    return order_model.create(context["body"])
+    return order_model.create(context["body"], context.get("session_id", ""))

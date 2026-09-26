@@ -1,5 +1,7 @@
 const API_URL = window.location.protocol === "file:" ? "http://localhost:3000/api" : "/api";
 const PROFILE_KEY = "cupcakeshop_usuario";
+const SESSION_KEY = "cupcakeshop_sessao";
+let memorySessionId = "";
 
 const produtos = [
   {
@@ -146,11 +148,12 @@ const money = new Intl.NumberFormat("pt-BR", {
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
+      "X-Session-Id": getCartSession(),
       ...(options.headers || {}),
     },
-    ...options,
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.erro || "Erro ao acessar a API");
@@ -222,6 +225,27 @@ function loadLocalUser() {
 
 function saveLocalUser(usuario) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(usuario));
+}
+
+function createSessionId() {
+  const value = window.crypto && window.crypto.randomUUID
+    ? window.crypto.randomUUID()
+    : `${Date.now()}${Math.random()}`;
+  return value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16);
+}
+
+function getCartSession() {
+  try {
+    let sessionId = localStorage.getItem(SESSION_KEY);
+    if (!sessionId) {
+      sessionId = createSessionId();
+      localStorage.setItem(SESSION_KEY, sessionId);
+    }
+    return sessionId;
+  } catch {
+    if (!memorySessionId) memorySessionId = createSessionId();
+    return memorySessionId;
+  }
 }
 
 function escapeHTML(value) {
