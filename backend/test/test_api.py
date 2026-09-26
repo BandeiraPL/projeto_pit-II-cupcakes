@@ -57,6 +57,12 @@ class ApiTest(unittest.TestCase):
         status, pedido = self.request("POST", "/api/pedidos", {
             "endereco": "Rua das Flores, 123",
             "pagamento": "Pix",
+            "usuario": {
+                "nome": "Eduardo Bezerra Ramires",
+                "email": "eduardo.teste@email.com",
+                "telefone": "(11) 99999-0000",
+                "endereco": "Rua das Flores, 123",
+            },
         }, session_id="pedido")
         self.assertEqual(status, 201)
         self.assertEqual(pedido["status"], "Recebido")

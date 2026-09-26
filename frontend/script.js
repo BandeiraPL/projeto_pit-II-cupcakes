@@ -712,7 +712,11 @@ async function finishOrder() {
 
   const novoPedido = await api("/pedidos", {
     method: "POST",
-    body: JSON.stringify({ endereco, pagamento }),
+    body: JSON.stringify({
+      endereco,
+      pagamento,
+      usuario: { ...store.usuario, endereco },
+    }),
   });
 
   store.pedidos = [normalizeOrder(novoPedido), ...store.pedidos];

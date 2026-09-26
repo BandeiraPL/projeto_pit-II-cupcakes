@@ -2,7 +2,7 @@
 
 from src.data import store
 from src.database.connection import is_database_enabled, query
-from src.models import cart_model
+from src.models import cart_model, user_model
 from src.utils.http import http_error
 
 
@@ -63,6 +63,7 @@ def create(data, session_id=""):
 
     endereco = str(data["endereco"]).strip()
     pagamento = data.get("pagamento") or "Pix"
+    usuario_id = user_model.find_or_create_for_order(data.get("usuario"), endereco, session_id)
 
     if is_database_enabled():
         result = query(
@@ -70,9 +71,10 @@ def create(data, session_id=""):
             INSERT INTO pedidos
               (usuario_id, endereco_entrega, forma_pagamento, status, subtotal, desconto, taxa_entrega, total)
             VALUES
-              (1, %(endereco)s, %(pagamento)s, 'recebido', %(subtotal)s, %(desconto)s, %(taxa_entrega)s, %(total)s)
+              (%(usuario_id)s, %(endereco)s, %(pagamento)s, 'recebido', %(subtotal)s, %(desconto)s, %(taxa_entrega)s, %(total)s)
             """,
             {
+                "usuario_id": usuario_id,
                 "endereco": endereco,
                 "pagamento": pagamento,
                 "subtotal": carrinho["subtotal"],
@@ -102,19 +104,18 @@ def create(data, session_id=""):
             )
 
         cart_model.clear(session_id)
-        return build_order_response(pedido_id, endereco, pagamento, carrinho)
+        return build_order_response(pedido_id, endereco, pagamento, carrinho, usuario_id)
 
-    pedido = build_order_response(len(store.pedidos) + 1, endereco, pagamento, carrinho)
-    pedido["usuarioId"] = store.usuario["id"]
+    pedido = build_order_response(len(store.pedidos) + 1, endereco, pagamento, carrinho, usuario_id)
     store.pedidos.insert(0, pedido)
     cart_model.clear(session_id)
     return pedido
 
 
-def build_order_response(pedido_id, endereco, pagamento, carrinho):
+def build_order_response(pedido_id, endereco, pagamento, carrinho, usuario_id=1):
     return {
         "id": f"ORD-{int(pedido_id):03d}",
-        "usuarioId": 1,
+        "usuarioId": usuario_id,
         "data": datetime.now().strftime("%d/%m/%Y"),
         "status": "Recebido",
         "endereco": endereco,

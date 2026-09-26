@@ -42,3 +42,61 @@ def update(data):
 
     store.usuario.update(usuario)
     return store.usuario
+
+
+
+def find_or_create_for_order(data, endereco, session_id=""):
+    usuario = data if isinstance(data, dict) else {}
+    nome = clean(usuario.get("nome")) or "Cliente CupcakeShop"
+    email = clean(usuario.get("email")).lower() or default_email(session_id)
+    telefone = clean(usuario.get("telefone"))
+    endereco_usuario = clean(usuario.get("endereco")) or endereco
+
+    if is_database_enabled():
+        rows = query(
+            "SELECT id FROM usuarios WHERE email = %(email)s LIMIT 1",
+            {"email": email},
+        )
+        payload = {
+            "nome": nome,
+            "email": email,
+            "telefone": telefone,
+            "endereco": endereco_usuario,
+        }
+        if rows:
+            payload["id"] = rows[0]["id"]
+            query(
+                """
+                UPDATE usuarios
+                SET nome = %(nome)s, telefone = %(telefone)s, endereco = %(endereco)s
+                WHERE id = %(id)s
+                """,
+                payload,
+            )
+            return int(rows[0]["id"])
+
+        result = query(
+            """
+            INSERT INTO usuarios (nome, email, telefone, endereco, senha)
+            VALUES (%(nome)s, %(email)s, %(telefone)s, %(endereco)s, NULL)
+            """,
+            payload,
+        )
+        return int(result["insertId"])
+
+    store.usuario.update({
+        "nome": nome,
+        "email": email,
+        "telefone": telefone,
+        "endereco": endereco_usuario,
+    })
+    return int(store.usuario.get("id", 1))
+
+
+def clean(value):
+    return str(value or "").strip()
+
+
+def default_email(session_id=""):
+    key = "".join(char for char in str(session_id or "") if char.isalnum())[:16]
+    return f"cliente_{key or 'padrao'}@cupcakeshop.local"
