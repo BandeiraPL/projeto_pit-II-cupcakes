@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:3000/api";
+const API_URL = window.location.protocol === "file:" ? "http://localhost:3000/api" : "/api";
+const PROFILE_KEY = "cupcakeshop_usuario";
 
 const produtos = [
   {
@@ -114,12 +115,7 @@ const state = {
 };
 
 const store = {
-  usuario: {
-    nome: "Maria Silva",
-    email: "maria.silva@email.com",
-    telefone: "(11) 98765-4321",
-    endereco: "Rua das Flores, 123 - São Paulo, SP",
-  },
+  usuario: loadLocalUser(),
   carrinho: [],
   pedidos: [
     {
@@ -163,9 +159,8 @@ async function api(path, options = {}) {
 
 async function loadFromApi() {
   try {
-    const [apiProdutos, usuario, carrinho, pedidos] = await Promise.all([
+    const [apiProdutos, carrinho, pedidos] = await Promise.all([
       api("/produtos"),
-      api("/usuario"),
       api("/carrinho"),
       api("/pedidos"),
     ]);
@@ -178,7 +173,7 @@ async function loadFromApi() {
         imagem: `assets/${produto.imagem || "cupcake-morango.png"}`,
       }))
     );
-    store.usuario = usuario;
+    store.usuario = loadLocalUser();
     syncCart(carrinho);
     store.pedidos = pedidos.map(normalizeOrder);
     state.apiOnline = true;
@@ -205,6 +200,28 @@ function normalizeOrder(pedido) {
     ...pedido,
     itens: `${quantidade} cupcake(s)`,
   };
+}
+
+function emptyUser() {
+  return {
+    nome: "",
+    email: "",
+    telefone: "",
+    endereco: "",
+  };
+}
+
+function loadLocalUser() {
+  try {
+    const saved = localStorage.getItem(PROFILE_KEY);
+    return saved ? { ...emptyUser(), ...JSON.parse(saved) } : emptyUser();
+  } catch {
+    return emptyUser();
+  }
+}
+
+function saveLocalUser(usuario) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(usuario));
 }
 
 function escapeHTML(value) {
@@ -537,10 +554,10 @@ function renderProfile() {
   const usuario = store.usuario;
   app.innerHTML = `
     <section class="profile-hero">
-      <span class="avatar">${escapeHTML(usuario.nome.charAt(0))}</span>
+      <span class="avatar">${escapeHTML(usuario.nome ? usuario.nome.charAt(0) : "?")}</span>
       <div>
-        <h1>${escapeHTML(usuario.nome)}</h1>
-        <p>${escapeHTML(usuario.email)}</p>
+        <h1>${escapeHTML(usuario.nome || "Perfil do cliente")}</h1>
+        <p>${escapeHTML(usuario.email || "Dados ainda nao preenchidos")}</p>
       </div>
     </section>
 
@@ -679,6 +696,7 @@ async function finishOrder() {
   store.pedidos = (await api("/pedidos")).map(normalizeOrder);
   syncCart(await api("/carrinho"));
   store.usuario.endereco = endereco;
+  saveLocalUser(store.usuario);
   updateCartBadge();
 
   openModal(`
@@ -756,23 +774,17 @@ document.addEventListener("input", (event) => {
 document.addEventListener("submit", async (event) => {
   if (event.target.id !== "profile-form") return;
   event.preventDefault();
-  try {
-    const data = new FormData(event.target);
-    store.usuario = await api("/usuario", {
-      method: "PUT",
-      body: JSON.stringify({
-        nome: data.get("nome").trim(),
-        email: data.get("email").trim(),
-        telefone: data.get("telefone").trim(),
-        endereco: data.get("endereco").trim(),
-      }),
-    });
-    closeModal();
-    render();
-    showToast("Dados atualizados");
-  } catch (error) {
-    showToast(error.message);
-  }
+  const data = new FormData(event.target);
+  store.usuario = {
+    nome: data.get("nome").trim(),
+    email: data.get("email").trim(),
+    telefone: data.get("telefone").trim(),
+    endereco: data.get("endereco").trim(),
+  };
+  saveLocalUser(store.usuario);
+  closeModal();
+  render();
+  showToast("Dados atualizados");
 });
 
 modal.addEventListener("click", (event) => {
