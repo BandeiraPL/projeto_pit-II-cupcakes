@@ -612,7 +612,7 @@ function dataRow(icon, label, value) {
 function emptyOrders() {
   return `
     <article class="order-card">
-      <p>Nenhum pedido realizado nesta sessao.</p>
+      <p>Nenhum pedido realizado.</p>
     </article>
   `;
 }
