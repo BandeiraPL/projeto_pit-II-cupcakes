@@ -1,6 +1,5 @@
 const API_URL = window.location.protocol === "file:" ? "http://localhost:3000/api" : "/api";
 const PROFILE_KEY = "cupcakeshop_usuario";
-const SESSION_KEY = "cupcakeshop_sessao";
 let memorySessionId = "";
 
 const produtos = [
@@ -235,17 +234,8 @@ function createSessionId() {
 }
 
 function getCartSession() {
-  try {
-    let sessionId = localStorage.getItem(SESSION_KEY);
-    if (!sessionId) {
-      sessionId = createSessionId();
-      localStorage.setItem(SESSION_KEY, sessionId);
-    }
-    return sessionId;
-  } catch {
-    if (!memorySessionId) memorySessionId = createSessionId();
-    return memorySessionId;
-  }
+  if (!memorySessionId) memorySessionId = createSessionId();
+  return memorySessionId;
 }
 
 function escapeHTML(value) {
