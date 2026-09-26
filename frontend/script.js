@@ -1,5 +1,6 @@
 const API_URL = window.location.protocol === "file:" ? "http://localhost:3000/api" : "/api";
 const PROFILE_KEY = "cupcakeshop_usuario";
+const ORDERS_KEY = "cupcakeshop_pedidos_sessao";
 let memorySessionId = "";
 
 const produtos = [
@@ -118,22 +119,7 @@ const state = {
 const store = {
   usuario: loadLocalUser(),
   carrinho: [],
-  pedidos: [
-    {
-      id: "ORD-001",
-      data: "27/03/2026",
-      status: "Entregue",
-      total: 24.9,
-      itens: "3 cupcakes",
-    },
-    {
-      id: "ORD-002",
-      data: "18/03/2026",
-      status: "Entregue",
-      total: 17.0,
-      itens: "2 cupcakes",
-    },
-  ],
+  pedidos: loadSessionOrders(),
 };
 
 const app = document.querySelector("#app");
@@ -161,10 +147,9 @@ async function api(path, options = {}) {
 
 async function loadFromApi() {
   try {
-    const [apiProdutos, carrinho, pedidos] = await Promise.all([
+    const [apiProdutos, carrinho] = await Promise.all([
       api("/produtos"),
       api("/carrinho"),
-      api("/pedidos"),
     ]);
 
     produtos.splice(
@@ -177,7 +162,7 @@ async function loadFromApi() {
     );
     store.usuario = loadLocalUser();
     syncCart(carrinho);
-    store.pedidos = pedidos.map(normalizeOrder);
+    store.pedidos = loadSessionOrders();
     state.apiOnline = true;
   } catch (error) {
     state.apiOnline = false;
@@ -202,6 +187,21 @@ function normalizeOrder(pedido) {
     ...pedido,
     itens: `${quantidade} cupcake(s)`,
   };
+}
+
+function loadSessionOrders() {
+  try {
+    const saved = sessionStorage.getItem(ORDERS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSessionOrders() {
+  try {
+    sessionStorage.setItem(ORDERS_KEY, JSON.stringify(store.pedidos));
+  } catch {}
 }
 
 function emptyUser() {
@@ -591,7 +591,7 @@ function renderProfile() {
     <section class="section">
       <h2>Histórico de Pedidos</h2>
       <div class="order-list">
-        ${store.pedidos.map(orderCard).join("")}
+        ${store.pedidos.length ? store.pedidos.map(orderCard).join("") : emptyOrders()}
       </div>
     </section>
   `;
@@ -606,6 +606,14 @@ function dataRow(icon, label, value) {
         <span>${escapeHTML(value)}</span>
       </div>
     </div>
+  `;
+}
+
+function emptyOrders() {
+  return `
+    <article class="order-card">
+      <p>Nenhum pedido realizado nesta sessao.</p>
+    </article>
   `;
 }
 
@@ -707,7 +715,8 @@ async function finishOrder() {
     body: JSON.stringify({ endereco, pagamento }),
   });
 
-  store.pedidos = (await api("/pedidos")).map(normalizeOrder);
+  store.pedidos = [normalizeOrder(novoPedido), ...store.pedidos];
+  saveSessionOrders();
   syncCart(await api("/carrinho"));
   store.usuario.endereco = endereco;
   saveLocalUser(store.usuario);
