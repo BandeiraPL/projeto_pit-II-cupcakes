@@ -109,7 +109,7 @@ const produtos = [
 const initialUser = loadLocalUser();
 
 const state = {
-  route: isUserComplete(initialUser) ? "home" : "profile",
+  route: "catalog",
   produtoAtual: 1,
   quantidadeDetalhe: 1,
   busca: "",
@@ -260,13 +260,6 @@ function escapeHTML(value) {
 }
 
 function go(route, produtoId) {
-  if (route !== "profile" && !isUserComplete()) {
-    state.route = "profile";
-    showToast("Preencha o cadastro para continuar");
-    render();
-    return;
-  }
-
   state.route = route;
   if (produtoId) {
     state.produtoAtual = Number(produtoId);
@@ -589,7 +582,7 @@ function renderProfile() {
       <span class="avatar">${escapeHTML(usuario.nome ? usuario.nome.charAt(0) : "?")}</span>
       <div>
         <h1>${cadastroCompleto ? escapeHTML(usuario.nome) : "Cadastro do cliente"}</h1>
-        <p>${cadastroCompleto ? escapeHTML(usuario.email) : "Preencha seus dados para iniciar a compra"}</p>
+        <p>${cadastroCompleto ? escapeHTML(usuario.email) : "Preencha seus dados para finalizar a compra"}</p>
       </div>
     </section>
 
@@ -601,7 +594,7 @@ function renderProfile() {
         <label class="field"><span>Telefone</span><input name="telefone" value="${escapeHTML(usuario.telefone)}" required /></label>
         <label class="field"><span>Endereço</span><input name="endereco" value="${escapeHTML(usuario.endereco)}" required /></label>
         <button type="submit" class="primary-button">
-          ${cadastroCompleto ? "Salvar dados" : "Salvar cadastro e escolher produtos"}
+          ${cadastroCompleto ? "Salvar dados" : "Salvar cadastro e voltar ao carrinho"}
         </button>
       </form>
     </section>
@@ -656,10 +649,6 @@ function orderCard(pedido) {
 }
 
 function render() {
-  if (!state.loading && state.apiOnline && !isUserComplete() && state.route !== "profile") {
-    state.route = "profile";
-  }
-
   shell.classList.toggle("detail-mode", state.route === "product");
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.route === state.route);
@@ -833,7 +822,7 @@ document.addEventListener("submit", async (event) => {
   };
   saveLocalUser(store.usuario);
   closeModal();
-  if (primeiroCadastro) state.route = "catalog";
+  if (primeiroCadastro && store.carrinho.length) state.route = "cart";
   render();
   showToast(primeiroCadastro ? "Cadastro salvo" : "Dados atualizados");
 });
