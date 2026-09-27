@@ -1,4 +1,4 @@
-const API_URL = window.location.protocol === "file:" ? "http://localhost:3000/api" : "/api";
+﻿const API_URL = window.location.protocol === "file:" ? "http://localhost:3000/api" : "/api";
 const PROFILE_KEY = "cupcakeshop_usuario";
 const ORDERS_KEY = "cupcakeshop_pedidos_sessao";
 let memorySessionId = "";
@@ -106,8 +106,10 @@ const produtos = [
   },
 ];
 
+const initialUser = loadLocalUser();
+
 const state = {
-  route: "home",
+  route: isUserComplete(initialUser) ? "home" : "profile",
   produtoAtual: 1,
   quantidadeDetalhe: 1,
   busca: "",
@@ -117,7 +119,7 @@ const state = {
 };
 
 const store = {
-  usuario: loadLocalUser(),
+  usuario: initialUser,
   carrinho: [],
   pedidos: loadSessionOrders(),
 };
@@ -226,6 +228,12 @@ function saveLocalUser(usuario) {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(usuario));
 }
 
+function isUserComplete(usuario = store.usuario) {
+  return ["nome", "email", "telefone", "endereco"].every((campo) =>
+    String(usuario[campo] || "").trim()
+  );
+}
+
 function createSessionId() {
   const value = window.crypto && window.crypto.randomUUID
     ? window.crypto.randomUUID()
@@ -252,6 +260,13 @@ function escapeHTML(value) {
 }
 
 function go(route, produtoId) {
+  if (route !== "profile" && !isUserComplete()) {
+    state.route = "profile";
+    showToast("Preencha o cadastro para continuar");
+    render();
+    return;
+  }
+
   state.route = route;
   if (produtoId) {
     state.produtoAtual = Number(produtoId);
@@ -538,23 +553,12 @@ function renderCart() {
 
     <section class="checkout-box">
       <h2>Entrega e pagamento</h2>
+      <div class="profile-card">
+        ${dataRow("@", "Cliente", store.usuario.nome)}
+        ${dataRow("#", "Telefone", store.usuario.telefone)}
+        ${dataRow(">", "Endereço", store.usuario.endereco)}
+      </div>
       <div class="form-grid">
-        <label class="field">
-          <span>Nome</span>
-          <input id="checkout-name" value="${escapeHTML(store.usuario.nome)}" />
-        </label>
-        <label class="field">
-          <span>Email</span>
-          <input id="checkout-email" type="email" value="${escapeHTML(store.usuario.email)}" />
-        </label>
-        <label class="field">
-          <span>Telefone</span>
-          <input id="checkout-phone" value="${escapeHTML(store.usuario.telefone)}" />
-        </label>
-        <label class="field">
-          <span>Endereco</span>
-          <input id="checkout-address" value="${escapeHTML(store.usuario.endereco)}" />
-        </label>
         <label class="field">
           <span>Pagamento</span>
           <select id="checkout-payment">
@@ -563,6 +567,7 @@ function renderCart() {
             <option>Dinheiro na entrega</option>
           </select>
         </label>
+        <button class="secondary-button" data-action="navigate" data-route="profile">Editar cadastro</button>
       </div>
     </section>
 
@@ -578,34 +583,37 @@ function renderCart() {
 
 function renderProfile() {
   const usuario = store.usuario;
+  const cadastroCompleto = isUserComplete(usuario);
   app.innerHTML = `
     <section class="profile-hero">
       <span class="avatar">${escapeHTML(usuario.nome ? usuario.nome.charAt(0) : "?")}</span>
       <div>
-        <h1>${escapeHTML(usuario.nome || "Perfil do cliente")}</h1>
-        <p>${escapeHTML(usuario.email || "Dados ainda nao preenchidos")}</p>
+        <h1>${cadastroCompleto ? escapeHTML(usuario.nome) : "Cadastro do cliente"}</h1>
+        <p>${cadastroCompleto ? escapeHTML(usuario.email) : "Preencha seus dados para iniciar a compra"}</p>
       </div>
     </section>
 
     <section class="section">
-      <div class="row-between">
-        <h2>Meus Dados</h2>
-        <button class="text-button" data-action="edit-profile">Editar</button>
-      </div>
-      <div class="profile-card">
-        ${dataRow("○", "Nome", usuario.nome)}
-        ${dataRow("@", "Email", usuario.email)}
-        ${dataRow("☎", "Telefone", usuario.telefone)}
-        ${dataRow("⌖", "Endereço", usuario.endereco)}
-      </div>
+      <h2>${cadastroCompleto ? "Dados cadastrados" : "Dados do cliente"}</h2>
+      <form id="profile-form" class="form-grid">
+        <label class="field"><span>Nome</span><input name="nome" value="${escapeHTML(usuario.nome)}" required /></label>
+        <label class="field"><span>Email</span><input name="email" type="email" value="${escapeHTML(usuario.email)}" required /></label>
+        <label class="field"><span>Telefone</span><input name="telefone" value="${escapeHTML(usuario.telefone)}" required /></label>
+        <label class="field"><span>Endereço</span><input name="endereco" value="${escapeHTML(usuario.endereco)}" required /></label>
+        <button type="submit" class="primary-button">
+          ${cadastroCompleto ? "Salvar dados" : "Salvar cadastro e escolher produtos"}
+        </button>
+      </form>
     </section>
 
-    <section class="section">
-      <h2>Histórico de Pedidos</h2>
-      <div class="order-list">
-        ${store.pedidos.length ? store.pedidos.map(orderCard).join("") : emptyOrders()}
-      </div>
-    </section>
+    ${cadastroCompleto ? `
+      <section class="section">
+        <h2>Histórico de Pedidos</h2>
+        <div class="order-list">
+          ${store.pedidos.length ? store.pedidos.map(orderCard).join("") : emptyOrders()}
+        </div>
+      </section>
+    ` : ""}
   `;
 }
 
@@ -648,6 +656,10 @@ function orderCard(pedido) {
 }
 
 function render() {
+  if (!state.loading && state.apiOnline && !isUserComplete() && state.route !== "profile") {
+    state.route = "profile";
+  }
+
   shell.classList.toggle("detail-mode", state.route === "product");
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.route === state.route);
@@ -715,23 +727,17 @@ function editProfile() {
 }
 
 async function finishOrder() {
-  const nome = document.querySelector("#checkout-name").value.trim();
-  const email = document.querySelector("#checkout-email").value.trim();
-  const telefone = document.querySelector("#checkout-phone").value.trim();
-  const endereco = document.querySelector("#checkout-address").value.trim();
-  const pagamento = document.querySelector("#checkout-payment").value;
-  if (!nome || !email || !telefone || !endereco) {
-    showToast("Preencha os dados da entrega");
+  if (!isUserComplete()) {
+    go("profile");
+    showToast("Preencha o cadastro antes de finalizar");
     return;
   }
 
-  store.usuario = { nome, email, telefone, endereco };
-  saveLocalUser(store.usuario);
-
+  const pagamento = document.querySelector("#checkout-payment").value;
   const novoPedido = await api("/pedidos", {
     method: "POST",
     body: JSON.stringify({
-      endereco,
+      endereco: store.usuario.endereco,
       pagamento,
       usuario: store.usuario,
     }),
@@ -744,7 +750,7 @@ async function finishOrder() {
 
   openModal(`
     <h2>Pedido confirmado</h2>
-    <p class="page-subtitle">Pedido ${novoPedido.id} recebido para entrega em ${escapeHTML(endereco)}.</p>
+    <p class="page-subtitle">Pedido ${novoPedido.id} recebido para entrega em ${escapeHTML(store.usuario.endereco)}.</p>
     <p class="section-note">Pagamento: ${escapeHTML(pagamento)}</p>
     <div class="modal-actions">
       <button class="primary-button" data-action="order-profile">Ver histórico</button>
@@ -818,6 +824,7 @@ document.addEventListener("submit", async (event) => {
   if (event.target.id !== "profile-form") return;
   event.preventDefault();
   const data = new FormData(event.target);
+  const primeiroCadastro = !isUserComplete();
   store.usuario = {
     nome: data.get("nome").trim(),
     email: data.get("email").trim(),
@@ -826,8 +833,9 @@ document.addEventListener("submit", async (event) => {
   };
   saveLocalUser(store.usuario);
   closeModal();
+  if (primeiroCadastro) state.route = "catalog";
   render();
-  showToast("Dados atualizados");
+  showToast(primeiroCadastro ? "Cadastro salvo" : "Dados atualizados");
 });
 
 modal.addEventListener("click", (event) => {
@@ -836,3 +844,4 @@ modal.addEventListener("click", (event) => {
 
 render();
 loadFromApi();
+
