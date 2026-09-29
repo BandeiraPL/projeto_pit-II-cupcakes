@@ -76,3 +76,6 @@ backend/       Código do backend em Python organizado em MVC
 docs/          Documentação do projeto
 frontend/      Interface do usuário em HTML, CSS e JavaScript
 ```
+
+## Link da aplicação
+https://cupcakesshop-pit-ii.bandcode.tech

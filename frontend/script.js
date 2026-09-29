@@ -395,11 +395,19 @@ function renderApiOffline() {
 
 function produtosFiltrados() {
   const termo = state.busca.trim().toLowerCase();
+  const filtro = normalizarTexto(state.filtro);
   return produtos.filter((produto) => {
     const matchBusca = produto.nome.toLowerCase().includes(termo);
-    const matchFiltro = state.filtro === "Todos" || produto.categoria === state.filtro;
+    const matchFiltro = state.filtro === "Todos" || normalizarTexto(produto.categoria) === filtro;
     return matchBusca && matchFiltro;
   });
+}
+
+function normalizarTexto(texto) {
+  return String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function renderCatalogGrid() {
