@@ -85,5 +85,5 @@ POST   /api/pedidos
 ## Testes
 
 ```bash
-python -m unittest discover -s test
+python -m pytest -v
 ```

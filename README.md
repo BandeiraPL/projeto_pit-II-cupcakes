@@ -20,8 +20,8 @@ O CupcakeShop é uma aplicação web simples para venda de cupcakes. O cliente a
 
 Os documentos principais estão na pasta `docs`:
 
-- `docs/UML_CupcakeShop.docx`: documentação UML do sistema, com casos de uso, classes, sequência, atividades, banco de dados e relação com o backend.
-- `docs/revisaoPIT-1.docx`: revisão e atualização da documentação do PIT I para o PIT II.
+- `docs/UML_CupcakeShop.pdf`: documentação UML do sistema, com casos de uso, classes, sequência, atividades, banco de dados e relação com o backend.
+- `docs/revisaoPIT-1.pdf`: revisão e atualização da documentação do PIT I para o PIT II.
 
 ## Como Rodar o Backend
 
